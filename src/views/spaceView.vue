@@ -2,10 +2,15 @@
 
 import { reactive, onBeforeMount, ref } from 'vue';
 import { computed } from 'vue';
-import { useRoute , useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { getSubCollection } from '@/lib/firebase.js';
 
 const { params: { id: uid } } = useRoute();
+
+const names = import.meta.env.VITE_APP_FIREBASE_COLLECTION_SPACE
+const nameDevices = import.meta.env.VITE_APP_FIREBASE_COLLECTION_DEVICES
+const nameSpace = import.meta.env.VITE_APP_FIREBASE_COLLLECTION_NAMES
+
 const router = useRouter();
 
 const spaces = reactive({
@@ -21,10 +26,11 @@ const getSpaceName = (id) => {
 }
 
 onBeforeMount(async () => {
-    await getSubCollection('spaces', uid, 'devices', (doc) => {
+    await getSubCollection(names, uid, nameDevices, (doc) => {
         doc.forEach((device) => spaces.devices.push({ id: device.id, ...device.data() }))
     });
-    await getSubCollection('spaces', uid, 'names', (doc) => {
+    
+    await getSubCollection(names, uid, nameSpace, (doc) => {
         spaces.names.splice(0, spaces.names.length);
         doc.forEach((name) => spaces.names.push({ id: name.id, ...name.data() }))
     });
@@ -60,8 +66,8 @@ const filteredDevices = computed(() => {
     <div class="flex justify-center items-center flex-wrap">
         <!-- Si no hay ningun dispositivo mostramos un mensaje -->
         <div v-if="filteredDevices.length === 0" class="p-4 m-4 flex-shrink-0">
-                <div class="px-6 py-4">
-                    <div class="font-bold text-xl mb-2 text-gray-700">No se han encontrado dispositivos en este espacio</div>
+            <div class="px-6 py-4">
+                <div class="font-bold text-xl mb-2 text-gray-700">No se han encontrado dispositivos en este espacio</div>
             </div>
         </div>
         <div v-for="device in filteredDevices" :key="device.id" class="p-4 m-4 flex-shrink-0">
@@ -84,8 +90,7 @@ const filteredDevices = computed(() => {
                 <!--Creamos un boton azul con tailwind -->
                 <div class="px-6 py-4">
                     <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    @click="router.push(`/${uid}/${device.id}`)"
-                    >
+                        @click="router.push(`/${uid}/${device.id}`)">
                         Ver dispositivo
                     </button>
                 </div>
