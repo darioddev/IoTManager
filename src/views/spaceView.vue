@@ -3,7 +3,7 @@
 import { reactive, onBeforeMount, ref } from 'vue';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getSubCollection } from '@/lib/firebase.js';
+import { getSubCollection, getDataChanged_collection } from '@/lib/firebase.js';
 
 const { params: { id: uid } } = useRoute();
 
@@ -11,12 +11,15 @@ const names = import.meta.env.VITE_APP_FIREBASE_COLLECTION_SPACE
 const nameDevices = import.meta.env.VITE_APP_FIREBASE_COLLECTION_DEVICES
 const nameSpace = import.meta.env.VITE_APP_FIREBASE_COLLLECTION_NAMES
 
-const router = useRouter();
+const router = useRouter(); 
 
 const spaces = reactive({
     devices: [],
     names: [],
 });
+
+const isLoading = ref(true);
+const ids = reactive([])
 
 const selectedSpace = ref('all');
 
@@ -26,16 +29,25 @@ const getSpaceName = (id) => {
 }
 
 onBeforeMount(async () => {
-    await getSubCollection(names, uid, nameDevices, (doc) => {
-        doc.forEach((device) => spaces.devices.push({ id: device.id, ...device.data() }))
-    });
-    
-    await getSubCollection(names, uid, nameSpace, (doc) => {
-        spaces.names.splice(0, spaces.names.length);
-        doc.forEach((name) => spaces.names.push({ id: name.id, ...name.data() }))
-    });
-})
+    try {
+        await getDataChanged_collection(names, (doc) => {
+            doc.forEach((space) => ids.push(space.id))
+        })
+        await getSubCollection(names, uid, nameDevices, (doc) => {
+            doc.forEach((device) => spaces.devices.push({ id: device.id, ...device.data() }))
+        });
 
+        await getSubCollection(names, uid, nameSpace, (doc) => {
+            spaces.names.splice(0, spaces.names.length);
+            doc.forEach((name) => spaces.names.push({ id: name.id, ...name.data() }))
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+        console.error(error);
+    } finally {
+        isLoading.value = false;
+    }
+})
 
 const filteredDevices = computed(() => {
     if (selectedSpace.value === 'all') {
@@ -53,17 +65,34 @@ const filteredDevices = computed(() => {
             SPACE MANAGER
         </h1>
     </div>
+
     <!-- Contenedor con select en la izquierda -->
     <div class="flex items-start justify-start bg-white p-4">
         <select v-model="selectedSpace" class="p-2 rounded border-gray-300 border">
             <option value="all">Todos</option>
-            <option v-for="space in spaces.names" :key="space.id" :value="space.id" @click="updateCollection">Espacio : {{
+            <option v-for="space in spaces.names" :key="space.id" :value="space.id">Espacio : {{
                 space.name }}</option>
         </select>
     </div>
 
+    <!-- Mostrar el cargando ... -->
+    <div v-if="isLoading" class="flex items-center justify-center mt-20">
+        <div class="flex flex-col items-center justify-center">
+            <i class='bx bx-loader-alt bx-spin bx-lg text-gray-400' style="vertical-align: middle;" title="Cargando"></i>
+            <p class="text-2xl font-medium text-gray-400">Cargando dispositivos...</p>
+        </div>
+    </div>
+
+    <!-- Mensaje en caso de que el usuario no exista -->
+    <div v-if="!ids.includes(uid) && !isLoading" class="flex items-center justify-center mt-20">
+        <div class="flex flex-col items-center justify-center">
+            <i class='bx bx-error bx-lg text-red-400' style="vertical-align: middle;" title="Error"></i>
+            <p class="text-2xl font-medium text-red-400">El usuario no existe</p>
+        </div>
+    </div>
+
     <!-- Cards en forma de filas y en la parte izquierda saldra el nombre del espacio que pertenece -->
-    <div class="flex justify-center items-center flex-wrap">
+    <div v-if="!isLoading && ids.includes(uid)" class="flex justify-center items-center flex-wrap">
         <!-- Si no hay ningun dispositivo mostramos un mensaje -->
         <div v-if="filteredDevices.length === 0" class="p-4 m-4 flex-shrink-0">
             <div class="px-6 py-4">
@@ -100,4 +129,4 @@ const filteredDevices = computed(() => {
     </div>
 </template>
 
-<style lang="scss" scoped></style>
+<style scoped></style>

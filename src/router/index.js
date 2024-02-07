@@ -6,17 +6,20 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      meta: { title: 'IoTManager' },
       component: () => import('@/views/HomeView.vue')
     },
     {
       path: '/:id',
       name: 'space',
+      meta : { title: 'IoTManager' },
       component: () => import('@/views/spaceView.vue')
     },
     {
       path: '/:id/:device',
       name: 'device',
-      props : true,
+      meta : { title: 'IoTManager' },
+      props: true,
       component: () => import('@/views/deviceView.vue')
     }
   ]
